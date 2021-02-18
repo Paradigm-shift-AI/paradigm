@@ -20,6 +20,16 @@ def get_db():
 def get_basic_info(studntID: int, db: Session = Depends(get_db)):
     return crud.BasicInfo(db, studntID).get_response_basic()
 
+@app.get("/basicinfodemo")
+def get_basic_info_demo(studntID: int, db: Session = Depends(get_db)):
+    crud.enroll_in_demo(db, studntID)
+    crud.create_class_in_db(db, "dhananjaypurohit7@gmail.com", "Demo")
+    return crud.BasicInfo(db, studntID).get_response_basic()
+
+@app.get("/questionset")
+def get_demo_question(classID: int, db: Session = Depends(get_db), set1: int):
+    crud.generate_question_set(classID, db, set1)
+
 @app.get("/testreview")
 def get_history_classes(stundentID: int, classID: int, db: Session = Depends(get_db)):
     return crud.TestReview(db, classID, stundentID).get_test_review()

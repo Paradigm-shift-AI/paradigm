@@ -166,6 +166,12 @@ def get_course_teacher(session, email):
 
     return {"course": set(resp)}
 
+def enroll_in_demo(session, studentID):
+    gh = str(studentID) + "_5"
+    obj = models.CourseStudent(course_studentID=gh, studentID=studentID, courseID=5)
+    session.add(obj)
+    session.commit()
+
 def create_class_in_db(session, email, course):
     teacherID = session.query(models.Teacher).filter(models.Teacher.teacherEmail == email).first().teacherID
     course = session.query(models.Course).filter(models.Course.courseName == course).first().courseID
@@ -237,8 +243,32 @@ def get_class_info_for_teacher(session, classID):
         respObj["question"] = question.questionText
         respObj["answer"] = question.answer
 
+def qread():
+    with open("res_text0.txt", "r") as f:
+        fg = f.read()
+        fg = fg.replace("\n", " ")
+    return fg
 
-"if __name__ == '__main__':
+def generate_question_set(classID, session, set1):
+    pg = Brain(qread(), token_url = os.environ["PLUGIN_STORE_URL"], token_id = "stack-plugin")
+
+    for question in pg:
+        if question["type"] == 1:
+            obj = models.Question(questionType=1, text=question["question"], option1=question["option1"], option2=question["option2"], option3=question["option3"], option4=question["option4"], answer=question["answer"], score=question["score"])
+            session.add(obj)
+        elif question["type"] == 2:
+            obj = models.Question(questionType=2, text=question["question"], answer=str(question["answer"]), score=question["score"])
+            session.add(obj)
+        elif question["type"] == 3:
+            obj = models.Question(questionType=3, text=question["question"], option1=question["option1"], option2=question["option2"], option3=question["option3"], option4=question["option4"], answer1=question["answer1"], answer2=question["answer2"], answer3=question["answer3"], score=question["score"])
+            session.add(obj)
+        elif question["type"] == 4:
+            obj = models.Question(questionType=4, text=question["question"], answer=str(question["answer"]), score=question["score"])
+            session.add(obj)
+
+    session.commit()
+
+if __name__ == '__main__':
     engine = create_engine('mysql+pymysql://vedangj:password@localhost/paradigm')
     Session = sessionmaker(bind=engine)
     session = Session()
