@@ -1,7 +1,11 @@
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine, func
+from paradigm.Brain import Brain
+import os
 import models
+import copy
 import datetime
+import names
 import random
 
 
@@ -85,17 +89,8 @@ class TestReview():
 
         questionList = []
         for i in self.db.query(models.Question).filter(models.Question.classID == self.classID).all():
-            resp = {}
-            resp["questionText"] = i.text
-            if i.questionTypeID == 1:
-                resp["option"] = i.option.split("@")
-                resp["correctOption"] = i.correctOption
-                resp["correctTF"] = 0
-            else:
-                resp["correctTF"] = i.correctTF
-                resp["option"] = []
-                resp["correctOption"] = 0
-            resp["questionType"] = i.questionTypeID
+            resp = i.__dict__
+            resp.pop("_sa_instance_state", None)
             resp["response"] = self.db.query(models.Response).filter(models.Response.questionID == i.questionID).filter(models.Response.studentID == self.userId).first().valid
 
             questionList.append(resp)
@@ -124,38 +119,25 @@ class QuestionTest():
         ques = self.db.query(models.Question).filter(models.Question.classID == self.classID).all()
         asl = self.db.query(models.QuestionAsked).filter(models.QuestionAsked.studentID == self.studentID).all()
 
-        respObj = {}
 
         _ask = []
         for i in asl:
             _ask.append(i.questionID)
 
-        respObj["blank"] = {}
-        respObj["bool"] = {}
+
+        self.respObj = {"question": []}
 
         for i in ques:
             if i.questionID not in _ask:
-                if i.questionTypeID == 1:
-                    opt = i.option.split("@")
-                    respObj["blank"]["id"] = i.questionID
-                    respObj["blank"]["blank"] = i.text
-                    respObj["blank"]["answer"] = i.correctOption + 1
-                    respObj["blank"]["option1"] = opt[0]
-                    respObj["blank"]["option2"] = opt[1]
-                    respObj["blank"]["option3"] = opt[2]
-                else:
-                    fg = True
-                    if i.correctTF == 0:
-                        fg = False
-                    respObj["bool"]["id"] = i.questionID
-                    respObj["bool"]["answer"] = fg
-                    respObj["bool"]["bool"] = i.text
+                resptemp = copy.deepcopy(i.__dict__)
+                resptemp.pop('_sa_instance_state', None)
+                self.respObj["question"].append(resptemp)
 
                 id = "{0}_{1}".format(i.questionID, self.studentID)
                 self.db.add(models.QuestionAsked(questionAsked=id, studentID=self.studentID, questionID=i.questionID))
                 self.db.commit()
 
-        return respObj
+        return self.respObj
 
 def get_course_teacher(session, email):
     course = session.query(models.CourseTeacher, models.Teacher).filter(models.Teacher.teacherEmail == email).filter(models.CourseTeacher.teacherID == models.Teacher.teacherID).all()
@@ -201,6 +183,34 @@ def submit_response(session, studentID, questionID, response):
 def stop_class(session, classID):
     clas =  session.query(models.Clas).filter(models.Clas.classID == classID).first()
     clas.active = 0
+
+    students = session.query(models.Enroll.studentID).filter(models.Enroll.classID == classID).all()
+    _q = session.query(models.Question.questionID).filter(models.Question.classID == classID).all()
+
+    ques = []
+    for i in _q:
+        ques.append(i[0])
+
+    rest = {}
+    srf = {}
+
+    for i in students:
+        _sc = session.query(models.Response).filter(models.Response.valid == 1).filter(models.Response.studentID == i[0]).all()
+        scr = 0
+        for j in _sc:
+            if j.questionID in ques:
+                scr += 1
+        rest[i[0]] = scr
+        srf[i[0]] = scr
+
+    rest = [k for k, v in sorted(rest.items(), reverse=True, key=lambda item: item[1])]
+
+    ran = 1
+    for i in rest:
+        obj = models.Score(classID=classID, studentID=i, totalScore=srf[i], rank=ran)
+        ran += 1
+        session.add(obj)
+
     session.commit()
 
 def enroll_class_in_db(session, studntID, classID):
@@ -216,7 +226,7 @@ def get_teacher_info(session, teacherID):
     resp["course"] = get_course_teacher(session, teacherinfo.teacherEmail)["course"]
 
 def get__list_class_info_teacherDashboard(session, crouseName, teacherID):
-    crouseID = session.query(models.Course).filter(models.Course.courseName = courseName).first().courseID
+    crouseID = session.query(models.Course).filter(models.Course.courseName == courseName).first().courseID
 
     listOfClass = session.query(models.Clas).filter(models.Clas.crouseID == crouseID).filter(models.Clas.teacherID == teacherID).order_by(models.Clas.date.desc).all()
     respList = []
@@ -243,33 +253,54 @@ def get_class_info_for_teacher(session, classID):
         respObj["question"] = question.questionText
         respObj["answer"] = question.answer
 
-def qread():
-    with open("res_text0.txt", "r") as f:
+def create_student(studentID, session):
+    obj = models.Student(studentID=studentID, name=str(names.get_full_name()), gender="Male", age=20)
+    session.add(obj)
+    session.commit()
+
+def qread(a):
+    with open("res_text"+a+".txt", "r") as f:
         fg = f.read()
         fg = fg.replace("\n", " ")
     return fg
 
-def generate_question_set(classID, session, set1):
-    pg = Brain(qread(), token_url = os.environ["PLUGIN_STORE_URL"], token_id = "stack-plugin")
+def inset_question(classID, question, session):
+    jk = []
 
-    for question in pg:
-        if question["type"] == 1:
-            obj = models.Question(questionType=1, text=question["question"], option1=question["option1"], option2=question["option2"], option3=question["option3"], option4=question["option4"], answer=question["answer"], score=question["score"])
-            session.add(obj)
-        elif question["type"] == 2:
-            obj = models.Question(questionType=2, text=question["question"], answer=str(question["answer"]), score=question["score"])
-            session.add(obj)
-        elif question["type"] == 3:
-            obj = models.Question(questionType=3, text=question["question"], option1=question["option1"], option2=question["option2"], option3=question["option3"], option4=question["option4"], answer1=question["answer1"], answer2=question["answer2"], answer3=question["answer3"], score=question["score"])
-            session.add(obj)
-        elif question["type"] == 4:
-            obj = models.Question(questionType=4, text=question["question"], answer=str(question["answer"]), score=question["score"])
-            session.add(obj)
+    if question["type"] == 1:
+        obj1 = models.Question(questionTypeID=1, classID=classID, text=str(question["question"]), option1=str(question["option1"]), option2=str(question["option2"]), option3=str(question["option3"]), option4=str(question["option4"]), answer=str(question["answer"]), score=question["score"])
+        jk.append(obj1)
 
+    if question["type"] == 2:
+        obj2 = models.Question(questionTypeID=2, classID=classID, text=str(question["question"]), answer=str(question["answer"]), score=question["score"])
+        jk.append(obj2)
+
+    elif question["type"] == 3:
+        obj3 = models.Question(questionTypeID=3, classID=classID, text=str(question["question"]), option1=str(question["option1"]), option2=str(question["option2"]), option3=str(question["option3"]), option4=str(question["option4"]), answer1=str(question["answer1"]), answer2=str(question["answer2"]), score=question["score"])
+        jk.append(obj3)
+
+    elif question["type"] == 4:
+        obj4 = models.Question(questionTypeID=4, classID=classID, text=str(question["question"]), answer=str(question["answer"]), score=str(question["score"]))
+        jk.append(obj4)
+
+    session.add(jk[0])
     session.commit()
+
+def generate_question_set(classID, session, set1):
+    pg1 = []
+    if set1 == 1:
+        pg = Brain(qread(""), token_url = "http://127.0.0.1:8000/", token_id = "stack-plugin")
+        pg1 = pg.generate_question()
+    else:
+        pg = Brain(qread("0"), token_url = "http://127.0.0.1:8000/", token_id = "stack-plugin")
+        pg1 = pg.generate_question()
+
+    for question in pg1:
+        inset_question(classID, question, session)
+
 
 if __name__ == '__main__':
     engine = create_engine('mysql+pymysql://vedangj:password@localhost/paradigm')
     Session = sessionmaker(bind=engine)
     session = Session()
-    stop_class(session, 2)
+    generate_question_set(5, session, 1)
