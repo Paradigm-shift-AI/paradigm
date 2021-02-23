@@ -1,3 +1,11 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
+paradigm-brain==0.0.32
+names
+PyDictionary
+sklearn
+textblob
+en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-2.3.1/en_core_web_lg-2.3.1.tar.gz
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.3.1/en_core_web_sm-2.3.1.tar.gz
+-e git+https://github.com/huggingface/neuralcoref.git@cc78653d14259b2dfed3280d6a6c87553ba5f8b3#egg=neuralcoref

@@ -8,7 +8,7 @@ from ml import mls
 app = FastAPI()
 
 def get_db():
-    engine = create_engine('mysql+pymysql://vedangj:password@localhost/paradigm')
+    engine = create_engine('mysql+pymysql://vedang@dbserver-paradigm:password!V@dbserver-paradigm.mysql.database.azure.com/paradigm')
     Session = sessionmaker(bind=engine)
     session = Session()
     try:

@@ -289,10 +289,10 @@ def inset_question(classID, question, session):
 def generate_question_set(classID, session, set1):
     pg1 = []
     if set1 == 1:
-        pg = Brain(qread(""), token_url = "http://127.0.0.1:8000/", token_id = "stack-plugin")
+        pg = Brain(qread(""), token_url = "https://fastapiapp.azurewebsites.net/", token_id = "stack-plugin")
         pg1 = pg.generate_question()
     else:
-        pg = Brain(qread("0"), token_url = "http://127.0.0.1:8000/", token_id = "stack-plugin")
+        pg = Brain(qread("0"), token_url = "https://fastapiapp.azurewebsites.net/", token_id = "stack-plugin")
         pg1 = pg.generate_question()
 
     for question in pg1:
