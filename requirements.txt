@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-paradigm-brain==0.0.32
+paradigm-brain==0.0.33
 names
 PyDictionary
 sklearn
