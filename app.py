@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
 import crud
 from ml import mls
+from sqlalchemy.exc import SQLAlchemyError
 
 app = FastAPI()
 
@@ -22,9 +23,10 @@ def get_basic_info(studntID: int, db: Session = Depends(get_db)):
 
 @app.get("/basicinfodemo")
 def get_basic_info_demo(studntID: int, db: Session = Depends(get_db)):
-    crud.create_student(studntID, db)
-    crud.enroll_in_demo(db, studntID)
-    crud.create_class_in_db(db, "dhananjaypurohit7@gmail.com", "Demo")
+    if crud.check_student(studntID, db):
+        crud.create_student(studntID, db)
+        crud.enroll_in_demo(db, studntID)
+        crud.create_class_in_db(db, "dhananjaypurohit7@gmail.com", "Demo")
     return crud.BasicInfo(db, studntID).get_response_basic()
 
 @app.get("/questionset")

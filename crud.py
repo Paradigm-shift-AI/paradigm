@@ -253,6 +253,12 @@ def get_class_info_for_teacher(session, classID):
         respObj["question"] = question.questionText
         respObj["answer"] = question.answer
 
+def check_student(studentID, session):
+    qer = session.query(models.Student).filter(models.Student.studentID == studentID).all()
+    if len(qer) == 0:
+        return True
+    return False
+
 def create_student(studentID, session):
     obj = models.Student(studentID=studentID, name=str(names.get_full_name()), gender="Male", age=20)
     session.add(obj)
